@@ -32,3 +32,7 @@ build/
 *.pfx
 *.p7b
 *.p7c
+
+
+model.pt 
+#model.pt is too big for github
