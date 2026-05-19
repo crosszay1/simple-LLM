@@ -59,3 +59,74 @@ tensor_X.shape, tensor_y.shape
 
 dataset = TensorDataset(tensor_X, tensor_y)
 dataloader = DataLoader(dataset, batch_size=256, shuffle=True)
+
+
+class TinyLLM(nn.Module):
+  def __init__(self, vocab_size, embed_size, hidden_size):
+    super(TinyLLM, self).__init__()
+    self.embedding = nn.Embedding(vocab_size, embed_size)
+    self.rnn = nn.RNN(embed_size, hidden_size, batch_first=True)
+    self.fc = nn.Linear(hidden_size, vocab_size)
+
+  def forward(self, x):
+    out = self.embedding(x)
+    out, _ = self.rnn(out)
+    out = self.fc(out)
+    return out
+
+
+
+embed_size = 128
+hidden_size = 256
+
+model = TinyLLM(encoding.n_vocab, 
+                embed_size, hidden_size
+).to("cuda")
+
+
+num_params = sum(p.numel() for p in model.parameters())
+print(f"Total parameters: {num_params}")
+
+
+
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+print("Reached training loop")
+n_epochs = 40
+
+for epoch in range(n_epochs):
+  epoch_loss = 0
+  for X, y in dataloader:
+    optimizer.zero_grad()
+    outputs = model(X)
+    outputs = outputs.view(-1, encoding.n_vocab)
+    y = y.view(-1)
+    loss = criterion(outputs, y)
+    loss.backward()
+    optimizer.step()
+    epoch_loss += loss.item()
+
+  avg_loss = epoch_loss / len(dataloader)
+  print(f'Epoch [{epoch+1}/{n_epochs}], Loss: {avg_loss:.4f}')
