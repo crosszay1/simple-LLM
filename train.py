@@ -4,6 +4,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from pathlib import Path
 
 
 #        config stuffs        #
@@ -39,10 +40,15 @@ def generate_training_data(data, n, tokenizer):
 
 
 
-#For now we just train on one data piece
-data = ""
-with open("data/CIA_World_Fact_Sheet_2006.txt", "r", encoding="utf-8") as f:
-  data = f.read()
+def load_training_data(data_dir):
+  parts = []
+  for file_path in sorted(Path(data_dir).rglob("*")):
+    if file_path.is_file():
+      parts.append(file_path.read_text(encoding="utf-8"))
+  return "\n\n".join(parts)
+
+#Multiple files!!!
+data = load_training_data("data")
 
 encoding = tiktoken.get_encoding("o200k_base")
 
