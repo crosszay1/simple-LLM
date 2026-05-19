@@ -10,7 +10,7 @@ from pathlib import Path
 #        config stuffs        #
 sequence_len = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-max_training_samples = 100_000_000_000
+max_training_samples = 100_000
 
 
 
@@ -52,30 +52,21 @@ data = load_training_data("data")
 
 encoding = tiktoken.get_encoding("o200k_base")
 
-# Create a streaming dataset over token positions instead of materializing all sliding windows.
-tokens = encoding.encode(data)
 
-class TokenDataset(torch.utils.data.Dataset):
-  def __init__(self, tokens, seq_len, max_samples=None):
-    self.tokens = tokens
-    self.seq_len = seq_len
-    self.max_start = max(0, len(tokens) - seq_len)
-    if max_samples is not None:
-      self.length = min(self.max_start, int(max_samples))
-    else:
-      self.length = self.max_start
+X, Y = generate_training_data(data, sequence_len, encoding)
 
-  def __len__(self):
-    return self.length
-
-  def __getitem__(self, idx):
-    start = int(idx)
-    x = torch.tensor(self.tokens[start:start + self.seq_len], dtype=torch.long)
-    y = torch.tensor(self.tokens[start + 1:start + 1 + self.seq_len], dtype=torch.long)
-    return x, y
+if max_training_samples is not None:
+  X = X[:max_training_samples]
+  Y = Y[:max_training_samples]
 
 
-dataset = TokenDataset(tokens, sequence_len, max_training_samples)
+tensor_X = torch.tensor(X, dtype = torch.long)
+tensor_y = torch.tensor(Y, dtype = torch.long)
+tensor_X.shape, tensor_y.shape
+
+
+
+dataset = TensorDataset(tensor_X, tensor_y)
 dataloader = DataLoader(
   dataset,
   batch_size=256,
