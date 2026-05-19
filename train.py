@@ -4,12 +4,13 @@ from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from pathlib import Path
 
 
 #        config stuffs        #
 sequence_len = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-max_training_samples = 100_000
+max_training_samples = 100_000_000_000
 
 
 
@@ -39,28 +40,42 @@ def generate_training_data(data, n, tokenizer):
 
 
 
-#For now we just train on one data piece
-data = ""
-with open("data/CIA_World_Fact_Sheet_2006.txt", "r", encoding="utf-8") as f:
-  data = f.read()
+def load_training_data(data_dir):
+  parts = []
+  for file_path in sorted(Path(data_dir).rglob("*")):
+    if file_path.is_file():
+      parts.append(file_path.read_text(encoding="utf-8"))
+  return "\n\n".join(parts)
+
+#Multiple files!!!
+data = load_training_data("data")
 
 encoding = tiktoken.get_encoding("o200k_base")
 
+# Create a streaming dataset over token positions instead of materializing all sliding windows.
+tokens = encoding.encode(data)
 
-X, Y = generate_training_data(data, sequence_len, encoding)
+class TokenDataset(torch.utils.data.Dataset):
+  def __init__(self, tokens, seq_len, max_samples=None):
+    self.tokens = tokens
+    self.seq_len = seq_len
+    self.max_start = max(0, len(tokens) - seq_len)
+    if max_samples is not None:
+      self.length = min(self.max_start, int(max_samples))
+    else:
+      self.length = self.max_start
 
-if max_training_samples is not None:
-  X = X[:max_training_samples]
-  Y = Y[:max_training_samples]
+  def __len__(self):
+    return self.length
+
+  def __getitem__(self, idx):
+    start = int(idx)
+    x = torch.tensor(self.tokens[start:start + self.seq_len], dtype=torch.long)
+    y = torch.tensor(self.tokens[start + 1:start + 1 + self.seq_len], dtype=torch.long)
+    return x, y
 
 
-tensor_X = torch.tensor(X, dtype = torch.long)
-tensor_y = torch.tensor(Y, dtype = torch.long)
-tensor_X.shape, tensor_y.shape
-
-
-
-dataset = TensorDataset(tensor_X, tensor_y)
+dataset = TokenDataset(tokens, sequence_len, max_training_samples)
 dataloader = DataLoader(
   dataset,
   batch_size=256,
