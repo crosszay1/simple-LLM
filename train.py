@@ -10,7 +10,7 @@ from pathlib import Path
 #        config stuffs        #
 sequence_len = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-max_training_samples = 100_000
+max_training_samples = 100_000_000_000
 
 
 
